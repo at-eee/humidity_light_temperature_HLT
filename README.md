@@ -1,4 +1,4 @@
-# Humidity, Light and Temperature sensor measuring breadboard-based electronic device/prototype
+# HLT (Humidity, Light, Temperature) measuring prototype device
 
 ## Prerequisites
 
@@ -61,7 +61,7 @@ Excuse the look (even when prototype I try to keep things clean/aesthetic) tried
 ![light_mode_newer-ezgif com-optimize](https://github.com/user-attachments/assets/9bd5ada8-16d5-4bcd-b6ae-0fb4a6f05509)
 
 (last gif (this one - light level mode showcase) was sped up only x2) <br>
-(Yes, in general light level mode is much more responsive)
+(Yes, in general light level mode is much more responsive (due to the structure and nature of DHT11 sensors module's sensors vs photoresistor sensor)
 
 (Also yes; All the video speed ups were due to GitHub's 10MB limit to every media added to "readme.md") <br>
 (If you want you can contact me for full materials/videos)
@@ -69,6 +69,7 @@ Excuse the look (even when prototype I try to keep things clean/aesthetic) tried
 ## This electronic circuit's/prototype's schematic
 
 <img width="1270" height="1025" alt="Screenshot from 2025-02-05 18-52-37" src="https://github.com/user-attachments/assets/b2bbab66-bec2-41cb-96da-92fa782a8080" />
-(the 4 transistors seen in the center of the image are makeshift "NOT" logic gates) <br>
-<i>Made in falstad</i> (the file of electronic circuit is to be found in <code>/falstad/hlt_circuit.txt</code>) <br>
-just be aware that the circuit in falstad works a little different (because there isn't a direct counterpart of 138 demux and), used demultiplexer from falstad returns <i>HIGH</i> on the selected pin wheras (our) 138 demux returns <i>LOW</i> on the selected pin.
+
+(The 4 transistors seen in the center of the image are makeshift "NOT" logic gates) <br>
+
+<i>Made in falstad</i> (the file of electronic circuit is to be found in <code>/falstad/hlt_circuit.txt</code>) - Just be aware that the circuit in falstad works a little different (because there isn't a direct counterpart of 138 demux and), used demultiplexer from falstad returns <i>HIGH</i> on the selected pin wheras (our) 138 demux returns <i>LOW</i> on the selected pin.
