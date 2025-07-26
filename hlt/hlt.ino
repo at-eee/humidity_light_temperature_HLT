@@ -1,12 +1,10 @@
 #include <DHT.h>
 
-#define DHTPIN 10       // Pin dla modułu DHT11
-#define DHTTYPE DHT11   // Typ czujnika DHT11
-DHT dht(DHTPIN, DHTTYPE); // Tworzenie obiektu DHT
+#define DHTTYPE DHT11   // DHTTYPE as macro for DHT11
+DHT dht(DHTPIN, DHTTYPE); // Creating the DHT object
 
-#define LDRPIN A0      // Pin dla czujnika światła
-
-// Konkretnie nazwane piny w Arduino
+// Named accoring to role Arduino I/O pins:
+// Led segments pins:
 #define LED_PIN_A 2
 #define LED_PIN_B 3
 #define LED_PIN_C 4
@@ -15,26 +13,43 @@ DHT dht(DHTPIN, DHTTYPE); // Tworzenie obiektu DHT
 #define LED_PIN_F 7
 #define LED_PIN_G 8
 #define LED_PIN_DP 9
+// 138 demultiplexer's selection pins (select lines pins):
 #define DEMUX_PIN_0 11
 #define DEMUX_PIN_1 12
-#define DEMUX_PIN_2 13
+#define DEMUX_PIN_2 13  // "Dummy" demux pin, unused for actual digit positions of LED display but used for "resetting" the LEDS ("resetLEDS()" function).
+// Sensor-related pins:
+#define DHTPIN 10       // DHT11 module pin
+#define LDRPIN A0       // Light detection sensor pin (photoresistor's circuit electric current intensity reading pin)
 #define BUTTON_PIN_1 A1
 
-// Tryby wyświetlania (dla funkcji displayDigit i displayAllDigits)
-#define TEMP_MODE 0  // Tryb temperatury
-#define HUM_MODE 1   // Tryb wilgotności
-#define LIGHT_MODE 2 // Tryb poziomu światła
+// Sensor/display modes:
+#define TEMP_MODE 0  // Temperature mode
+#define HUM_MODE 1   // Humidity mode
+#define LIGHT_MODE 2 // Light level mode
 
-// "Specjalne" symbole cyfr
-#define EMPTY_DIGIT 10 // "Pusta" cyfra
-#define HORIZONTAL_LINE 11 // Pozioma kreska
+// Special symbols:
+#define EMPTY_DIGIT 10 // Empty "symbol".
+#define HORIZONTAL_LINE 11 // horizontal line symbol (segment G activated only).
 
-// Aktualne, globalnie przechowywane wartości cyfr do wyświetlenia na wyświetlaczu LED
+// Current, globally stored, digits to be displayed on a 4-digit LED display (where the digit0 is the least significant digit and digit3 is the most significant).
 int digit3, digit2, digit1, digit0;
 
 /*
-Które segmenty odpowiadają którym pinom 4-cyfrowego 8-segmentowego wyświetlacza LED (firmy/model: ??? (- to do))
-licząć od (??? - to do):
+Segments and their corresponding letter identifiers:
+
+    A
+ -------
+ |     |
+F|     |B
+ |  G  |
+ -------
+ |     |
+E|     |C
+ |     |
+ -------.<-DP
+    D
+
+Segments and their corresponding pins on 3461BS LED display:
 A 11
 B 7
 C 4
@@ -46,12 +61,12 @@ DP 3
 */
 
 void setup() {
-  // Inicjalizacja komunikacji szeregowej z prędkością 9600 baudów => przesyłanie 9600 bitów na sekundę (jedna z popularnych prędkości transmisji danych)
+  // Initialization of serial communication with the speed of 9600 bits per second (one of the popular data transfer speeds)
   Serial.begin(9600); 
-  // Inicjalizacja czujnika DHT 
+  // DHT sensor initialization.
   dht.begin();         
 
-  // Piny segmentów wyświetlacza LED
+  // LED display segment pins.
   pinMode(LED_PIN_A, OUTPUT);
   pinMode(LED_PIN_B, OUTPUT);
   pinMode(LED_PIN_C, OUTPUT);
@@ -61,18 +76,18 @@ void setup() {
   pinMode(LED_PIN_G, OUTPUT);
   pinMode(LED_PIN_DP, OUTPUT);
 
-  // Piny demultipleksera (demux)
+  // Demultiplexer (demux) pins.
   pinMode(DEMUX_PIN_0, OUTPUT);
   pinMode(DEMUX_PIN_1, OUTPUT);
   pinMode(DEMUX_PIN_2, OUTPUT);
 
-  // Pin wejściowy przycisku
+  // Input pin for button.
   pinMode(BUTTON_PIN_1, INPUT);
 }
 
-// Definicja segmentów dla cyfr 0-9
+// Definition of powered segments for 0-9 digits and special symbols (hence 12 and not only 10 "digits"/array size).
 const byte digits[12][8] = {
-  // Segmenty: LOW = WŁĄCZONY, HIGH = WYŁĄCZONY (jest to spowodowane przez budowe i sposób działania wyświetlacza (wyświetlacz LED ze wspólną anodową))
+  // Segments: LOW = ON, HIGH = OFF (it's caused because of the internal structure and type of connection (Common Anode) of the LED display).
   {LOW, LOW, LOW, LOW, LOW, LOW, HIGH, HIGH},  // 0
   {HIGH, LOW, LOW, HIGH, HIGH, HIGH, HIGH, HIGH}, // 1
   {LOW, LOW, HIGH, LOW, LOW, HIGH, LOW, HIGH},  // 2
@@ -83,35 +98,32 @@ const byte digits[12][8] = {
   {LOW, LOW, LOW, HIGH, HIGH, HIGH, HIGH, HIGH}, // 7
   {LOW, LOW, LOW, LOW, LOW, LOW, LOW, HIGH},  // 8
   {LOW, LOW, LOW, HIGH, HIGH, LOW, LOW, HIGH},  // 9
-  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH}, // "Specjalna" cyfra ("pusty" symbol)
-  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH} // "Specjalna" cyfra (pozioma kreska)
+  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH}, // "Special" digit ("empty" symbol)
+  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH} // "Special" digit (horizontal line (only segment G is active))
 };
 
 
-// "Resetuje" diody LED poprzez zasilanie nieistniejącej pozycji (nie zasila żadnej z obecnych pozycji)
-// Dokładniej: Zgodnie z wykorzystaną ilością stanów i posiadanym demultiplekserem wciąż pozostają nam 4 stany, które 
-// nie zostały wykorzystane/użyte, a zatem, które nie oświetlają żadnej z czterech pozycji ("cyfr") na naszym wyświetlaczu LED.
+// "Resets" the LED display (all digit positions) (i.e: just displays nothing on the LED display) by powering the "non-existing" digit position.
+// --
 void resetLEDS(){
   digitalWrite(DEMUX_PIN_2, HIGH);
 }
 
-//Zamiast wskaźników, optymalniej będzie używać jednak nadal zmiennych globalnych
-void calculateDigits(float temperature_float){
-  //Po wprowadzonych zmianach powinno teoretycznie być bardziej efektywnie/optymalnie (mniej skomplikowane operacje).
-  // Conversion of temperature from float to int.
-  int temperature_int = (int)(temperature_float * 100); 
-  // Zamieniamy liczbę z formatu (liczba zmiennoprzecinkowa) "ab.cdef" na format: "abcd" (liczba całkowita) (gdzie; a-f to cyfry)
-  // (np. 20.81 -> 2081)
-  digit0 = temperature_int % 10; // Czwarta cyfra (np., cyfra 1 z 208*1* (20.81))
-  temperature_int /= 10;
-  digit1 = temperature_int % 10; // Trzecia cyfra (np., cyfra 8 z 20*8*1 (20.81))
-  temperature_int /= 10;
-  digit2 = temperature_int % 10; // Druga cyfra (np., cyfra 0 z 2*0*81 (20.81))
-  temperature_int /= 10;
-  digit3 = temperature_int % 10; // Pierwsza cyfra (np., cyfra 2 z *2*081 (20.81))
+// Calculates (and assign to globally stored) digit values to be displayed on LED display - from the given float value.
+void calculateDigits(float value_float){
+  // Conversion of value from float to int.
+  int value_int = (int)(value_float * 100);
+  // Taking modulo 10, and diving by 10 to get the next digit of the number.
+  digit0 = value_int % 10;
+  value_int /= 10;
+  digit1 = value_int % 10;
+  value_int /= 10;
+  digit2 = value_int % 10;
+  value_int /= 10;
+  digit3 = value_int % 10;
 }
 
-// Pętla sprawdzająca temperature (tryb temperaturowy/tryb mierzenia temperatury)
+// Loop related to checking the temperature (temperature measuring/check mode)
 void temperatureLoop(){
 
   int userIntercation = -1;
@@ -125,7 +137,6 @@ void temperatureLoop(){
       return;
     }
 
-    // Konwersja temperatury na wartość całkowitą
     calculateDigits(temperature);
 
     Serial.print("Temperature: ");
@@ -135,15 +146,15 @@ void temperatureLoop(){
     userIntercation = displayAllDigits(TEMP_MODE);
     resetLEDS();
 
-    if(userIntercation == 0){ //jeżeli uzytkownik wcisnął przycisk (0 zwracane jest, gdy użytkownik wciśnie przycisk)
-      break; // wyjdź z tej pętli
-    } // W przeciwnym razie kontynuuj pętle normalnie robiąc kolejny pomiar.
+    if(userIntercation == 0){ // If user pressed the button (because userInteraction is set to 0 (earlier displayAllDigits returns 0), when user presses the button).
+      break; // Leave this loop.
+    } // Else continue the loop and take another measurement.
 
   }
 
 }
 
-// Pętla sprawdzająca poziom wilgotności (tryb sprawdzania poziomu wilgotności)
+// Loop related to checking the humidity level (level of humidity measuring/check mode)
 void humidityLoop(){
 
   int userIntercation = -1;
@@ -156,7 +167,6 @@ void humidityLoop(){
       return;
     }
 
-    // Konwersja temperatury na wartość całkowitą
     calculateDigits(humidity);
 
     Serial.print("Humidity: ");
@@ -166,15 +176,14 @@ void humidityLoop(){
     userIntercation = displayAllDigits(TEMP_MODE);
     resetLEDS();
 
-    if(userIntercation == 0){ //jeżeli uzytkownik wcisnął przycisk (0 zwracane jest, gdy użytkownik wciśnie przycisk)
-      break; // wyjdź z tej pętli
-    } // W przeciwnym razie kontynuuj pętle normalnie robiąc kolejny pomiar.
+    if(userIntercation == 0){ // If user pressed the button (because userInteraction is set to 0 (earlier displayAllDigits returns 0), when user presses the button).
+      break; // Leave this loop.
+    } // Else continue the loop and take another measurement.
   }
 }
 
-// (Można teoretycznie później połączyć wspólne fragmenty w jedną funkcje (w której fragmenty są na przykład wybierane za sprawą switch-case'ów
-// albo skorzystać ze wskaźnika funkcji) potem, ale trzeba ocenić opłacalność względem wydajności).
-// Pętla sprawdzająca poziom naświetlenia (tryb sprawdzający poziom naświetlenia)
+// --
+// Loop related to checking the light level (level of brightness measuring/check mode).
 void lightLevelLoop(){
 
   int userIntercation = -1;
@@ -186,36 +195,36 @@ void lightLevelLoop(){
     // Printing on serial monitor
     Serial.print("Light level: ");
     Serial.print(lightLevel);
-    if (lightLevel > 1000) Serial.println(" (Bardzo wysoka)"); 
-    else if (lightLevel > 750) Serial.println(" (Wysoka)"); 
-    else if (lightLevel > 500) Serial.println(" (Średnia)"); 
-    else if (lightLevel > 250) Serial.println(" (Niska)"); 
-    else Serial.println(" (Bardzo niska)"); 
+    if (lightLevel > 1000) Serial.println(" (Very bright)"); 
+    else if (lightLevel > 750) Serial.println(" (Bright)"); 
+    else if (lightLevel > 500) Serial.println(" (Medium brightness)"); 
+    else if (lightLevel > 250) Serial.println(" (Dim)"); 
+    else Serial.println(" (Very dim)"); 
 
     calculateLightLevelBar(lightLevel);
     userIntercation = displayAllDigits(LIGHT_MODE);
     resetLEDS();
 
-    if(userIntercation == 0){ //jeżeli uzytkownik wcisnął przycisk (0 zwracane jest, gdy użytkownik wciśnie przycisk)
-      break; // wyjdź z tej pętli
-    } // W przeciwnym razie kontynuuj pętle normalnie robiąc kolejny pomiar.
+    if(userIntercation == 0){ // If user pressed the button (because userInteraction is set to 0 (earlier displayAllDigits returns 0), when user presses the button).
+      break; // Leave this loop.
+    } // Else continue the loop and take another measurement.
   }
 }
 
-// Funkcja wyświetlająca cyfrę na danej pozycji na wyświetlaczu
+// Function displaying chosen digit on chosen position in chosen display mode.
 void displayDigit(int digit, int position, int displayMode) {
 
   /*
-  00 - cyfra 0
-  01 - cyfra 1
-  10 - cyfra 2
-  11 - cyfra 3
-  (liczymy od skrajnej prawej strony wyświetlacza/liczby (cyfry mniej znaczące) w kierunku lewej (cyfry bardziej znaczące): cyfra 0, 1, itd.)
+  00 - digit position 0
+  01 - digit position 1
+  10 - digit position 2
+  11 - digit position 3
+  (We count from right to left side of the LED display (i.e: from least significant to most significant digit).
   */
 
-  // Zasilanie danej pozycji cyfry na wyświetlaczu LED
+  // Powering the specific (digit) position on LED display by operating on the demultiplexer (demux) pins.
   switch(position){
-    case 0: // Prawa skrajna pozycja cyfry na wyświetlaczu
+    case 0: // Right-most digit position on LED display
       digitalWrite(DEMUX_PIN_0, LOW);
       digitalWrite(DEMUX_PIN_1, LOW);
       break;
@@ -227,18 +236,19 @@ void displayDigit(int digit, int position, int displayMode) {
       digitalWrite(DEMUX_PIN_0, LOW);
       digitalWrite(DEMUX_PIN_1, HIGH);
       break;
-    case 3: // Lewa skrajna pozycja cyfry na wyświetlaczu
+    case 3: // Left-most digit position on LED display
       digitalWrite(DEMUX_PIN_0, HIGH);
       digitalWrite(DEMUX_PIN_1, HIGH);
       break;
   }
 
   // Włączenie segmentów cyfry dla danej pozycji
+  // Setting all segments of current digit position to corresponding symbol (digit) that is bound to be displayed.
   for (int i = 0; i < 8; i++) {
     digitalWrite(LED_PIN_A + i, digits[digit][i]);
   }
 
-  // Ustawienie kropki dziesiętnej
+  // Setting the Decimal Point segment (DP), for specific display modes.
   if(displayMode == TEMP_MODE || displayMode == HUM_MODE){
     if(position == 2) digitalWrite(LED_PIN_DP, LOW);
   }
@@ -247,10 +257,10 @@ void displayDigit(int digit, int position, int displayMode) {
 
 int displayAllDigits(int displayMode){
 
-  const int flickerRate = 5; /// Migotanie co 5 ms
-  const int timeLimit = 200; // Po 200ms zmierz ponownie (automatycznie przerwij i mierz ponownie)
-  int i = 0; //Zmienna do liczenia liczby iteracji
-  digitalWrite(DEMUX_PIN_2, LOW); // Upewnienie się, że nie zostanie wybrana nieistniejąca pozycja (po resecie resetLEDS())
+  const int flickerRate = 5; // Flicker (change displayed (powered) digit on LED display) every 5ms (milliseconds).
+  const int timeLimit = 200; // After 200ms automatically stop and take another measurement.
+  int i = 0; // Variable used for iteration counting.
+  digitalWrite(DEMUX_PIN_2, LOW); // Making sure this pin is set to low (after the resetLEDS() call).
   for ( ; ; ) { 
 
     i++;
@@ -269,9 +279,9 @@ int displayAllDigits(int displayMode){
 
     // Jeśli użytkownik naciśnie przycisk
     if(digitalRead(BUTTON_PIN_1)){
-      return 0; // Zwracamy 0, gdy chcemy zakończyć pomiary z obecnego trybu i przejść do następnego (użytkownik wcisnął przycisk).
+      return 0; // Return 0, if user wants to end measurements in the current mode and switch to the next one (user pressed the button).
     }else if(i * 4 * flickerRate >= timeLimit){
-      return 1; // Zwracamy 1, jeżeli czas pokazywania danego pomiaru minął i ma zostać wykonany ponowny pomiar dla tego trybu.
+      return 1; // Return 1, if time of displaying the current measurement has passed and next measurement shall be taken (timeLimit has passed).
     }
 
   }
@@ -281,34 +291,34 @@ int displayAllDigits(int displayMode){
 void calculateLightLevelBar(int lightLevel) {
   
   if (lightLevel > 1000) { 
-    // Bardzo duża jasność -> Wyświetla '----' (4 kreski)
+    // Very high brightness -> Displays '----' (4 bars)
 	  digit3 = HORIZONTAL_LINE;
     digit2 = HORIZONTAL_LINE;
     digit1 = HORIZONTAL_LINE;
     digit0 = HORIZONTAL_LINE;
   } 
   else if (lightLevel > 750) { 
-    // Duża jasność -> Wyświetla '---'
+    // High brightness -> Displays '---'
 	  digit3 = EMPTY_DIGIT;
     digit2 = HORIZONTAL_LINE;
     digit1 = HORIZONTAL_LINE;
     digit0 = HORIZONTAL_LINE;
   } 
   else if (lightLevel > 500) { 
-    // Średnia jasność -> Wyświetla '--'
+    // Medium brightness -> Displays '--'
 	  digit3 = EMPTY_DIGIT;
     digit2 = EMPTY_DIGIT;
     digit1 = HORIZONTAL_LINE;
     digit0 = HORIZONTAL_LINE;
   } 
   else if (lightLevel > 250) { 
-    // Niska jasność -> Wyświetla '-'
+    // Low brightness -> Displays '-'
 	  digit3 = EMPTY_DIGIT;
     digit2 = EMPTY_DIGIT;
     digit1 = EMPTY_DIGIT;
     digit0 = HORIZONTAL_LINE;
   } else { 
-    // Bardzo niska jasność -> Wyświetla '' (puste) (0 kresek)
+    // Very low brightness -> Displays '' (nothing) (0 bars)
 	  digit3 = EMPTY_DIGIT;
     digit2 = EMPTY_DIGIT;
     digit1 = EMPTY_DIGIT;
@@ -317,12 +327,12 @@ void calculateLightLevelBar(int lightLevel) {
 
 }
 
-// Główny loop jest teraz znacznie "czystszy".
+// Main program loop
 void loop() {
 
   temperatureLoop();
 
-  delay(250); // Dla upewnienia się, że pojedyncze wciśnięcie przycisku nie zostanie odczytane jako wielokortone.
+  delay(250); // In order to make sure button press isn't read as multiple presses.
 
   humidityLoop();
 
