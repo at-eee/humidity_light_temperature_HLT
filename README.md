@@ -70,5 +70,5 @@ Excuse the look (even when prototype I try to keep things clean/aesthetic) tried
 
 <img width="1270" height="1025" alt="Screenshot from 2025-02-05 18-52-37" src="https://github.com/user-attachments/assets/b2bbab66-bec2-41cb-96da-92fa782a8080" />
 (the 4 transistors seen in the center of the image are makeshift "NOT" logic gates) <br>
-*Made in falstad* (the file of electronic circuit is to be found in `/falstad/hlt_circuit.txt`) <br>
-just be aware that the circuit in falstad works a little different (because there isn't a direct counterpart of 138 demux and), used demultiplexer from falstad returns *HIGH* on the selected pin wheras (our) 138 demux returns *LOW* on the selected pin.
+<i>Made in falstad</i> (the file of electronic circuit is to be found in <code>/falstad/hlt_circuit.txt</code>) <br>
+just be aware that the circuit in falstad works a little different (because there isn't a direct counterpart of 138 demux and), used demultiplexer from falstad returns <i>HIGH</i> on the selected pin wheras (our) 138 demux returns <i>LOW</i> on the selected pin.
